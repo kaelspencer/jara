@@ -7,6 +7,7 @@ import csv
 # A class to hold the ranking components for an individual team
 #
 class Rank:
+    ranking = 0
     winPercent = 0
     winPercentWeight = 1.0
     
@@ -21,12 +22,12 @@ class Rank:
 class Team:
     wincount = 0
     losscount = 0
-    rank = Rank()
     
     def __init__(self, id, name):
         self.id = id
         self.name = name
         self.games = dict()
+        self.rank = Rank()
         
     def __str__(self):
         return self.name
@@ -120,13 +121,19 @@ class Ranking:
         
     def Rank(self):
         self.order = self.OrderByWinPer()
+        self.UpdateRankings()
+    
+    def UpdateRankings(self):
+        for rank, teams in self.order.iteritems():
+            for team in teams:
+                team.rank.ranking = rank
     
     def PrintRanking(self):
         output = ''
         
         for rank in sorted(self.order.keys()):
             for team in self.order[rank]:
-                output += str(rank).rjust(3) + '  ' + str(team) + '\n'
+                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + str(team.rank.TotalPoints()).rjust(6) + '\n'
         
         return output
     
@@ -151,7 +158,7 @@ class Ranking:
             
             for team in ordered[winPer]:
                 posList.append(team)
-                team.rank.winPercent = pos / self.totalTeams
+                team.rank.winPercent = round(pos / self.totalTeams * 1000)
 
             pos -= len(ordered[winPer])
             retOrder[revPos] = posList
@@ -204,7 +211,7 @@ def AddGame(row, fbsTeams, allTeams):
 def PrintAllTeams(fbsTeams):
     for id in sorted(fbsTeams.keys()):
         team = fbsTeams[id]
-        print str(team) + ' (' + str(team.wincount) + ' - ' + str(team.losscount) + ') ' + str(team.WinPercentInt())
+        print str(team.rank.ranking).rjust(3) + ' ' + str(team) + ' (' + str(team.wincount) + ' - ' + str(team.losscount) + ') '
         
         for date in sorted(team.games.keys()):
             print team.games[date].Pretty(team)
