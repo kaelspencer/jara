@@ -3,7 +3,7 @@
 from datetime import date
 import csv
 
-class School:
+class Team:
     def __init__(self, id, name):
         self.id = id
         self.name = name
@@ -57,6 +57,28 @@ class Game:
             self.wscore = self.ascore
             self.lscore = self.hscore
     
+    def Pretty(self, team):
+        output = str(self.date) + '\t'
+        
+        if self.away == team:
+            output += 'at ' + str(self.home)
+        else:
+            output += 'vs ' + str(self.away)
+        
+        output = output.ljust(35)
+        
+        if self.winner == team:
+            output += 'W'
+        else:
+            output += 'L'
+        
+        output += '  ' + str(self.wscore).rjust(2) + ' - ' + str(self.lscore).rjust(2)
+        
+        if self.neutral:
+            output += '\t(Neutral field)'
+        
+        return output
+    
     def __str__(self):
         teams = self.winner.name + ' over ' + self.loser.name
         output = str(self.date) + '\t' + teams.ljust(40) + str(self.wscore).rjust(2) + ' - ' + str(self.lscore).rjust(2)
@@ -77,18 +99,18 @@ class Game:
 def AddGame(row):
     neutral = False
 
-    if row['InstitutionID'] in allSchools:
-        h = allSchools[row['InstitutionID']]
+    if row['InstitutionID'] in allTeams:
+        h = allTeams[row['InstitutionID']]
     else:
-        h = School(row['InstitutionID'], row['Institution'])
-        fbsSchools[h.id] = h
-        allSchools[h.id] = h
+        h = Team(row['InstitutionID'], row['Institution'])
+        fbsTeams[h.id] = h
+        allTeams[h.id] = h
 
-    if row['Opponent ID'] in allSchools:
-        a = allSchools[row['Opponent ID']]
+    if row['Opponent ID'] in allTeams:
+        a = allTeams[row['Opponent ID']]
     else:
-        a = School(row['Opponent ID'], row['Opponent Name'])
-        allSchools[h.id] = h
+        a = Team(row['Opponent ID'], row['Opponent Name'])
+        allTeams[h.id] = h
         
     if row['Location'] == 'Neutral Site':
         neutral = True
@@ -111,19 +133,22 @@ def AddGame(row):
     h.AddGame(g)
     a.AddGame(g)
 
-fbsSchools = dict()
-allSchools = dict()
+def PrintAllTeams():
+    for id in sorted(fbsTeams.keys()):
+        team = fbsTeams[id]
+        print str(team) + ' (' + str(team.WinCount()) + ' - ' + str(team.LossCount()) + ')'
+        
+        for date in sorted(team.games.keys()):
+            print team.games[date].Pretty(team)
+        
+        print
+
+fbsTeams = dict()
+allTeams = dict()
 
 reader = csv.DictReader(open('fbs.2010.final.csv', 'rb'), delimiter=',', quotechar='"')
 
 for row in reader:
     AddGame(row)
 
-for id, school in fbsSchools.iteritems():
-    print str(school) + ' (' + str(school.WinCount()) + ' - ' + str(school.LossCount()) + ')'
-    
-    for date in sorted(school.games.keys()):
-        print school.games[date]
-    
-    print
-
+PrintAllTeams()
