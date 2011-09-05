@@ -3,7 +3,20 @@
 from datetime import date
 import csv
 
+class Ranking:
+    winPercent = 0
+    winPercentWeight = 1.0
+    
+    def TotalPoints(self):
+        total = self.winPercent * self.winPercentWeight
+        
+        return total
+
 class Team:
+    wincount = 0
+    losscount = 0
+    rank = Ranking()
+    
     def __init__(self, id, name):
         self.id = id
         self.name = name
@@ -15,25 +28,19 @@ class Team:
     def AddGame(self, g):
         if not g.date in self.games:
             self.games[g.date] = g
-    
-    def WinCount(self):
-        count = 0;
-        
-        for d, g in self.games.iteritems():
-            if g.winner == self:
-                count += 1
-        
-        return count
-    
-    def LossCount(self):
-        count = 0;
-        
-        for d, g in self.games.iteritems():
-            if g.loser == self:
-                count += 1
-        
-        return count
             
+            if g.winner == self:
+                self.wincount += 1
+            else:
+                self.losscount += 1
+    
+    def WinPercent(self):
+        return float(self.wincount) / (self.wincount + self.losscount)
+    
+    def WinPercentInt(self):
+        fPer = self.WinPercent()
+        return int(round(fPer * 1000))
+    
     def __eq__(self, other):
         return self.id == other.id
 
@@ -96,7 +103,7 @@ class Game:
         else:
             return 1
     
-def AddGame(row):
+def AddGame(row, fbsTeams, allTeams):
     neutral = False
 
     if row['InstitutionID'] in allTeams:
@@ -133,22 +140,49 @@ def AddGame(row):
     h.AddGame(g)
     a.AddGame(g)
 
-def PrintAllTeams():
+def OrderByWinPer(teams):
+    ordered = dict()
+    
+    for id in sorted(teams.keys()):
+        team = teams[id]
+        winPer = team.WinPercent()
+        
+        if winPer in ordered.keys():
+            ordered[winPer].append(team)
+        else:
+            ordered[winPer] = [team]
+    
+    totalTeams = float(len(teams))
+    pos = totalTeams
+    
+    for winPer in sorted(ordered.keys(), reverse=True):
+        print str(winPer) + ':'
+        
+        for team in ordered[winPer]:
+            team.rank.winPercent = pos / totalTeams
+            print '\t' + str(team).ljust(20) + '\t' + str(team.rank.TotalPoints())
+
+        pos -= len(ordered[winPer])
+        
+        print
+
+def PrintAllTeams(fbsTeams):
     for id in sorted(fbsTeams.keys()):
         team = fbsTeams[id]
-        print str(team) + ' (' + str(team.WinCount()) + ' - ' + str(team.LossCount()) + ')'
+        print str(team) + ' (' + str(team.wincount) + ' - ' + str(team.losscount) + ') ' + str(team.WinPercentInt())
         
         for date in sorted(team.games.keys()):
             print team.games[date].Pretty(team)
         
         print
 
-fbsTeams = dict()
-allTeams = dict()
+fbsTeamList = dict()
+allTeamList = dict()
 
 reader = csv.DictReader(open('fbs.2010.final.csv', 'rb'), delimiter=',', quotechar='"')
 
 for row in reader:
-    AddGame(row)
+    AddGame(row, fbsTeamList, allTeamList)
 
-PrintAllTeams()
+#PrintAllTeams(fbsTeamList)
+OrderByWinPer(fbsTeamList)
