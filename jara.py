@@ -1,23 +1,25 @@
 #!/usr/share/python/
 
+from datetime import date
 import csv
 
 class School:
     def __init__(self, id, name):
         self.id = id
         self.name = name
-        self.games = set([])
+        self.games = dict()
         
     def __str__(self):
         return self.name
         
     def AddGame(self, g):
-        self.games.add(g)
+        if not g.date in self.games:
+            self.games[g.date] = g
     
     def WinCount(self):
         count = 0;
         
-        for g in self.games:
+        for d, g in self.games.iteritems():
             if g.winner == self:
                 count += 1
         
@@ -26,7 +28,7 @@ class School:
     def LossCount(self):
         count = 0;
         
-        for g in self.games:
+        for d, g in self.games.iteritems():
             if g.loser == self:
                 count += 1
         
@@ -39,8 +41,8 @@ class Game:
     def __init__(self, home, away, hscore, ascore, date, neutral):
         self.home = home
         self.away = away
-        self.hscore = int(hscore)
-        self.ascore = int(ascore)
+        self.hscore = hscore
+        self.ascore = ascore
         self.date = date
         self.neutral = neutral
         
@@ -56,17 +58,15 @@ class Game:
             self.lscore = self.hscore
     
     def __str__(self):
-        output = self.winner.name + ' over ' + self.loser.name + ': ' + str(self.wscore) + ' - ' + str(self.lscore)
+        teams = self.winner.name + ' over ' + self.loser.name
+        output = str(self.date) + '\t' + teams.ljust(40) + str(self.wscore).rjust(2) + ' - ' + str(self.lscore).rjust(2)
         
         if self.neutral:
-            output += ' (Neutral field)'
+            output += '\t\t(Neutral field)'
         else:
-            output += ' (At ' + self.home.name + ')'
+            output += '\t\t(At ' + self.home.name + ')'
         
         return output
-    
-    def __hash__(self):
-        return hash(str(self))
     
     def __cmp__(self, other):
         if str(self) == str(other):
@@ -97,13 +97,17 @@ def AddGame(row):
         temp = h
         h = a
         a = temp
-        hscore = row['Score Against']
-        ascore = row['Score For']
+        hscore = int(row['Score Against'])
+        ascore = int(row['Score For'])
     else:
-        hscore = row['Score For']
-        ascore = row['Score Against']
+        hscore = int(row['Score For'])
+        ascore = int(row['Score Against'])
     
-    g = Game(h, a, hscore, ascore, row['Game Date'], neutral)
+    dateSubparts = row['Game Date'].split('/') # Format: MM/DD/YY
+    # BUG: Reverse Y2K bug? Yes. Fix.
+    d = date(2000 + int(dateSubparts[2]), int(dateSubparts[0]), int(dateSubparts[1]))
+    
+    g = Game(h, a, hscore, ascore, d, neutral)
     h.AddGame(g)
     a.AddGame(g)
 
@@ -115,11 +119,11 @@ reader = csv.DictReader(open('fbs.2010.final.csv', 'rb'), delimiter=',', quotech
 for row in reader:
     AddGame(row)
 
-for id, s in fbsSchools.iteritems():
-    print str(s) + ' (' + str(s.WinCount()) + ' - ' + str(s.LossCount()) + ')'
+for id, school in fbsSchools.iteritems():
+    print str(school) + ' (' + str(school.WinCount()) + ' - ' + str(school.LossCount()) + ')'
     
-    for g in s.games:
-        print g
-        
+    for date in sorted(school.games.keys()):
+        print school.games[date]
+    
     print
 
