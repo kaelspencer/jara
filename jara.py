@@ -7,12 +7,15 @@ import csv
 # A class to hold the ranking components for an individual team
 #
 class Rank:
-    ranking = 0
+    ranking = 124
     winPercent = 0
-    winPercentWeight = 1.0
+    winPercentWeight = 0.5
+    winOver = 0
+    winOverWeight = 0.5
     
     def TotalPoints(self):
         total = self.winPercent * self.winPercentWeight
+        total += self.winOver * self.winOverWeight
         
         return total
 
@@ -122,8 +125,35 @@ class Ranking:
     def Rank(self):
         self.order = self.OrderByWinPer()
         self.UpdateRankings()
+        
+        print self.PrintRanking()
+        
+        self.OrderByWinOver()
+        self.UpdateRankings()
     
     def UpdateRankings(self):
+        preorder = dict()
+        self.order = dict()
+        
+        for id, team in self.teams.iteritems():
+            tp = round(team.rank.TotalPoints())
+            
+            if tp in preorder.keys():
+                preorder[tp].append(team)
+            else:
+                preorder[tp] = [team]
+        
+        revPos = 1
+        
+        for points in sorted(preorder.keys(), reverse=True):
+            posList = list()
+            
+            for team in preorder[points]:
+                posList.append(team)
+
+            self.order[revPos] = posList
+            revPos += len(preorder[points])
+        
         for rank, teams in self.order.iteritems():
             for team in teams:
                 team.rank.ranking = rank
@@ -133,7 +163,8 @@ class Ranking:
         
         for rank in sorted(self.order.keys()):
             for team in self.order[rank]:
-                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + str(team.rank.TotalPoints()).rjust(6) + '\n'
+                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + str(team.rank.TotalPoints()).rjust(6)
+                output += '\t(' + str(team.wincount) + ' - ' + str(team.losscount) + ')\n'
         
         return output
     
@@ -165,24 +196,65 @@ class Ranking:
             revPos += len(ordered[winPer])
         
         return retOrder
+    
+    def OrderByWinOver(self):
+        bucketSize = 1
+        numBuckets = self.totalTeams / bucketSize
+        print numBuckets
+        maxPoints = 0
+        
+        for id, team in self.teams.iteritems():
+            points = 0
+            
+            #print team.name + ': '
+            for dt, game in team.games.iteritems():
+                if game.winner == team:
+                    points += numBuckets - game.loser.rank.ranking / bucketSize
+                    #print '\tBeat ' + str(game.loser.rank.ranking).rjust(3) + ' ' + game.loser.name.ljust(20) + 'Points: ' + str(numBuckets - game.loser.rank.ranking / bucketSize)
+            
+            #points /= len(team.games.keys())
+            team.rank.winOver = points
+            #print team.name.ljust(20) + ' ' + str(team.rank.winOver).rjust(8)
+            #print
+            
+            if points > maxPoints:
+                maxPoints = points
+        
+        for id, team in self.teams.iteritems():
+            team.rank.winOver /= float(maxPoints)
+
 #
 # Parses a row of the CSV file, creates games and teams as needed
 #
 def AddGame(row, fbsTeams, allTeams):
     neutral = False
+    print str(len(fbsTeams.keys())) + '\t' + str(len(allTeams.keys()))
 
-    if row['InstitutionID'] in allTeams:
-        h = allTeams[row['InstitutionID']]
+    if row['Institution ID'] in allTeams:
+        print '\t' + row['Institution'] + ' found in allTeams'
+        h = allTeams[row['Institution ID']]
+        
+        # Hey, this team showed up in the left column! They're an FBS team.
+        
+        if row['Institution ID'] in fbsTeams:
+            print '\t\tFound: ' + fbsTeams[h.id].name + ' vs ' + row['Opponent Name']
+        else:
+            print '\t\tAdding team to fbs'
+            fbsTeams[h.id] = h
     else:
-        h = Team(row['InstitutionID'], row['Institution'])
+        print '\t' + row['Institution'] + ' not found in allTeams'
+        h = Team(row['Institution ID'], row['Institution'])
         fbsTeams[h.id] = h
         allTeams[h.id] = h
 
     if row['Opponent ID'] in allTeams:
+        print '\t' + row['Opponent Name'] + ' found in allTeams'
         a = allTeams[row['Opponent ID']]
     else:
+        print '\t' + row['Opponent Name'] + ' not found in allTeams'
         a = Team(row['Opponent ID'], row['Opponent Name'])
         allTeams[h.id] = h
+    print
         
     if row['Location'] == 'Neutral Site':
         neutral = True
@@ -224,7 +296,7 @@ def PrintAllTeams(fbsTeams):
 fbsTeamList = dict()
 allTeamList = dict()
 
-reader = csv.DictReader(open('fbs.2010.final.csv', 'rb'), delimiter=',', quotechar='"')
+reader = csv.DictReader(open('fbs.2011.final.csv', 'rb'), delimiter=',', quotechar='"')
 
 for row in reader:
     AddGame(row, fbsTeamList, allTeamList)
