@@ -126,8 +126,6 @@ class Ranking:
         self.order = self.OrderByWinPer()
         self.UpdateRankings()
         
-        print self.PrintRanking()
-        
         self.OrderByWinOver()
         self.UpdateRankings()
     
@@ -228,33 +226,23 @@ class Ranking:
 #
 def AddGame(row, fbsTeams, allTeams):
     neutral = False
-    print str(len(fbsTeams.keys())) + '\t' + str(len(allTeams.keys()))
 
     if row['Institution ID'] in allTeams:
-        print '\t' + row['Institution'] + ' found in allTeams'
         h = allTeams[row['Institution ID']]
         
         # Hey, this team showed up in the left column! They're an FBS team.
-        
-        if row['Institution ID'] in fbsTeams:
-            print '\t\tFound: ' + fbsTeams[h.id].name + ' vs ' + row['Opponent Name']
-        else:
-            print '\t\tAdding team to fbs'
+        if row['Institution ID'] not in fbsTeams:
             fbsTeams[h.id] = h
     else:
-        print '\t' + row['Institution'] + ' not found in allTeams'
         h = Team(row['Institution ID'], row['Institution'])
         fbsTeams[h.id] = h
         allTeams[h.id] = h
 
     if row['Opponent ID'] in allTeams:
-        print '\t' + row['Opponent Name'] + ' found in allTeams'
         a = allTeams[row['Opponent ID']]
     else:
-        print '\t' + row['Opponent Name'] + ' not found in allTeams'
         a = Team(row['Opponent ID'], row['Opponent Name'])
         allTeams[h.id] = h
-    print
         
     if row['Location'] == 'Neutral Site':
         neutral = True
