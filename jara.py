@@ -2,6 +2,7 @@
 
 from datetime import date
 import csv
+import math
 
 #
 # A class to hold the ranking components for an individual team
@@ -9,9 +10,9 @@ import csv
 class Rank:
     ranking = 124
     winPercent = 0
-    winPercentWeight = 0.5
+    winPercentWeight = 0.001
     winOver = 0
-    winOverWeight = 0.5
+    winOverWeight = 1
     
     def TotalPoints(self):
         total = self.winPercent * self.winPercentWeight
@@ -117,6 +118,7 @@ class Game:
 #
 class Ranking:
     order = dict()
+    precision_digits = 1000; #U se three decimal places
     
     def __init__(self, teams):
         self.teams = teams
@@ -126,15 +128,20 @@ class Ranking:
         self.order = self.OrderByWinPer()
         self.UpdateRankings()
         
-        self.OrderByWinOver()
-        self.UpdateRankings()
+        print self.GetRankingDisplay(10)
+        
+        for a in range(1, 5):
+            for b in range(1, 5):
+                self.OrderByWinOver(10)
+                self.UpdateRankings()
+            print self.GetRankingDisplay(10)
     
     def UpdateRankings(self):
         preorder = dict()
         self.order = dict()
         
         for id, team in self.teams.iteritems():
-            tp = round(team.rank.TotalPoints())
+            tp = round(team.rank.TotalPoints() * self.precision_digits)
             
             if tp in preorder.keys():
                 preorder[tp].append(team)
@@ -156,12 +163,18 @@ class Ranking:
             for team in teams:
                 team.rank.ranking = rank
     
-    def PrintRanking(self):
+    def GetRankingDisplay(self, count = 0):
         output = ''
+        i = 0
         
         for rank in sorted(self.order.keys()):
             for team in self.order[rank]:
-                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + str(team.rank.TotalPoints()).rjust(6)
+                if count != 0 and i >= count:
+                    break
+                
+                i += 1
+                
+                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + ('%.3f' % (team.rank.TotalPoints(),))
                 output += '\t(' + str(team.wincount) + ' - ' + str(team.losscount) + ')\n'
         
         return output
@@ -195,10 +208,8 @@ class Ranking:
         
         return retOrder
     
-    def OrderByWinOver(self):
-        bucketSize = 1
-        numBuckets = self.totalTeams / bucketSize
-        print numBuckets
+    def OrderByWinOver(self, bucketSize):
+        numBuckets = math.ceil(self.totalTeams / bucketSize)
         maxPoints = 0
         
         for id, team in self.teams.iteritems():
@@ -207,8 +218,9 @@ class Ranking:
             #print team.name + ': '
             for dt, game in team.games.iteritems():
                 if game.winner == team:
-                    points += numBuckets - game.loser.rank.ranking / bucketSize
-                    #print '\tBeat ' + str(game.loser.rank.ranking).rjust(3) + ' ' + game.loser.name.ljust(20) + 'Points: ' + str(numBuckets - game.loser.rank.ranking / bucketSize)
+                    gamepoints = numBuckets - math.floor(game.loser.rank.ranking / bucketSize) 
+                    points += gamepoints
+                    #print '\tBeat ' + str(game.loser.rank.ranking).rjust(3) + ' ' + game.loser.name.ljust(20) + 'Points: ' + str(gamepoints)
             
             #points /= len(team.games.keys())
             team.rank.winOver = points
@@ -242,7 +254,7 @@ def AddGame(row, fbsTeams, allTeams):
         a = allTeams[row['Opponent ID']]
     else:
         a = Team(row['Opponent ID'], row['Opponent Name'])
-        allTeams[h.id] = h
+        allTeams[a.id] = a
         
     if row['Location'] == 'Neutral Site':
         neutral = True
@@ -291,6 +303,6 @@ for row in reader:
 
 rank = Ranking(fbsTeamList)
 rank.Rank()
-print rank.PrintRanking()
+#print rank.GetRankingDisplay(10)
 
 #PrintAllTeams(fbsTeamList)
