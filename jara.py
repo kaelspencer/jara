@@ -8,9 +8,9 @@ import math
 # A class to hold the ranking components for an individual team
 #
 class Rank:
-    ranking = 124
+    ranking = 0
     winPercent = 0
-    winPercentWeight = 0.001
+    winPercentWeight = 100 
     winOver = 0
     winOverWeight = 1
     
@@ -118,7 +118,7 @@ class Game:
 #
 class Ranking:
     order = dict()
-    precision_digits = 1000; #U se three decimal places
+    precision_digits = 1000; # Use three decimal places
     
     def __init__(self, teams):
         self.teams = teams
@@ -128,13 +128,16 @@ class Ranking:
         self.order = self.OrderByWinPer()
         self.UpdateRankings()
         
-        print self.GetRankingDisplay(10)
+        #print self.GetRankingDisplay(25)
         
-        for a in range(1, 5):
-            for b in range(1, 5):
-                self.OrderByWinOver(10)
-                self.UpdateRankings()
-            print self.GetRankingDisplay(10)
+        self.OrderByWinOver()
+        self.UpdateRankings()
+        
+        for a in range(1, 50):
+            self.OrderByWinOver()
+            self.UpdateRankings()
+            
+        print self.GetRankingDisplay(25)
     
     def UpdateRankings(self):
         preorder = dict()
@@ -175,7 +178,10 @@ class Ranking:
                 i += 1
                 
                 output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + ('%.3f' % (team.rank.TotalPoints(),))
-                output += '\t(' + str(team.wincount) + ' - ' + str(team.losscount) + ')\n'
+                output += '\t(' + str(team.wincount).rjust(2) + ' - ' + str(team.losscount) + ')'
+                output += '\t Win Over: ' + str(team.rank.winOver).rjust(5) + ' (' + str(team.rank.winOver * team.rank.winOverWeight).rjust(5) + ')'
+                output += '\t Win Per: ' + ('%.3f' % (team.rank.winPercent * team.rank.winPercentWeight,))
+                output += '\n'
         
         return output
     
@@ -186,6 +192,7 @@ class Ranking:
         for id in sorted(self.teams.keys()):
             team = self.teams[id]
             winPer = team.WinPercent()
+            team.rank.winPercent = winPer
             
             if winPer in ordered.keys():
                 ordered[winPer].append(team)
@@ -200,7 +207,6 @@ class Ranking:
             
             for team in ordered[winPer]:
                 posList.append(team)
-                team.rank.winPercent = round(pos / self.totalTeams * 1000)
 
             pos -= len(ordered[winPer])
             retOrder[revPos] = posList
@@ -208,30 +214,30 @@ class Ranking:
         
         return retOrder
     
-    def OrderByWinOver(self, bucketSize):
-        numBuckets = math.ceil(self.totalTeams / bucketSize)
-        maxPoints = 0
-        
+    def OrderByWinOver(self):
         for id, team in self.teams.iteritems():
             points = 0
             
-            #print team.name + ': '
+            if team.name == "Texas St.":
+                points = 0
+            
             for dt, game in team.games.iteritems():
                 if game.winner == team:
-                    gamepoints = numBuckets - math.floor(game.loser.rank.ranking / bucketSize) 
-                    points += gamepoints
-                    #print '\tBeat ' + str(game.loser.rank.ranking).rjust(3) + ' ' + game.loser.name.ljust(20) + 'Points: ' + str(gamepoints)
+                    points += self.DetermineGamePoints(game)
             
-            #points /= len(team.games.keys())
             team.rank.winOver = points
-            #print team.name.ljust(20) + ' ' + str(team.rank.winOver).rjust(8)
-            #print
-            
-            if points > maxPoints:
-                maxPoints = points
+    
+    def DetermineGamePoints(self, game):
+        bucketSize = 5
+        numBuckets = math.ceil(self.totalTeams / bucketSize)
         
-        for id, team in self.teams.iteritems():
-            team.rank.winOver /= float(maxPoints)
+        # If the win is over a team with a ranking of 0, that means they are an FCS school.
+        if game.loser.rank.ranking == 0:
+            gamepoints = 0
+        else:
+            gamepoints = numBuckets - math.floor(game.loser.rank.ranking / bucketSize)
+            
+        return gamepoints
 
 #
 # Parses a row of the CSV file, creates games and teams as needed
