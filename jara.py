@@ -10,13 +10,16 @@ import math
 class Rank:
     ranking = 0
     winPercent = 0
-    winPercentWeight = 100 
+    winPercentWeight = 100
     winOver = 0
     winOverWeight = 1
+    strengthOfSchedule = 0
+    strengthOfScheduleWeight = 100
     
     def TotalPoints(self):
         total = self.winPercent * self.winPercentWeight
         total += self.winOver * self.winOverWeight
+        total += self.strengthOfSchedule * self.strengthOfScheduleWeight
         
         return total
 
@@ -26,6 +29,9 @@ class Rank:
 class Team:
     wincount = 0
     losscount = 0
+    oppWinCount = 0
+    oppLossCount = 0
+    isFbs = False
     
     def __init__(self, id, name):
         self.id = id
@@ -125,10 +131,13 @@ class Ranking:
         self.totalTeams = float(len(self.teams))
         
     def Rank(self):
+        # This has the side effect of giving all FBS teams a ranking.
+        # After this, FCS schools will still have a ranking of 0.
         self.order = self.OrderByWinPer()
         self.UpdateRankings()
         
-        #print self.GetRankingDisplay(25)
+        self.DetermineStrenghOfSchedule()
+        self.UpdateRankings()
         
         self.OrderByWinOver()
         self.UpdateRankings()
@@ -180,7 +189,8 @@ class Ranking:
                 output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + ('%.3f' % (team.rank.TotalPoints(),))
                 output += '\t(' + str(team.wincount).rjust(2) + ' - ' + str(team.losscount) + ')'
                 output += '\t Win Over: ' + str(team.rank.winOver).rjust(5) + ' (' + str(team.rank.winOver * team.rank.winOverWeight).rjust(5) + ')'
-                output += '\t Win Per: ' + ('%.3f' % (team.rank.winPercent * team.rank.winPercentWeight,))
+                output += '\t Win Per: ' + ('%.3f' % (team.rank.winPercent * team.rank.winPercentWeight,)).rjust(6)
+                output += '\t SoS: ' + ('%.3f' % (team.rank.strengthOfSchedule * team.rank.strengthOfScheduleWeight,)) + ' (' + str(team.oppWinCount) + ' - ' + str(team.oppLossCount) + ')'
                 output += '\n'
         
         return output
@@ -218,24 +228,49 @@ class Ranking:
         for id, team in self.teams.iteritems():
             points = 0
             
-            if team.name == "Texas St.":
-                points = 0
-            
             for dt, game in team.games.iteritems():
                 if game.winner == team:
                     points += self.DetermineGamePoints(game)
             
             team.rank.winOver = points
     
+    def DetermineStrenghOfSchedule(self):
+        bucketSize = 5
+        numBuckets = math.ceil(self.totalTeams / bucketSize)
+        
+        for id, team in self.teams.iteritems():
+            oppWins = 0
+            oppLosses = 0
+            
+            for dt, game in team.games.iteritems():
+                if game.winner == team:
+                    oppTeam = game.loser
+                else:
+                    oppTeam  = game.winner
+                
+                # Only count FBS opponents.
+                if oppTeam.isFbs:
+                    oppWins += oppTeam.wincount
+                    oppLosses += oppTeam.losscount
+            
+            # Some transitional teams (FCS -> FBS) teams will have 0 FBS opponents. Their SoS will be 0.
+            if oppWins + oppLosses == 0:
+                team.rank.strengthOfSchedule = 0
+            else:
+                team.rank.strengthOfSchedule = float(oppWins) / (oppWins + oppLosses)
+            
+            team.oppWinCount = oppWins
+            team.oppLossCount = oppLosses
+    
     def DetermineGamePoints(self, game):
         bucketSize = 5
         numBuckets = math.ceil(self.totalTeams / bucketSize)
         
-        # If the win is over a team with a ranking of 0, that means they are an FCS school.
-        if game.loser.rank.ranking == 0:
-            gamepoints = 0
-        else:
+        # Only count points for wins over an FBS school.
+        if game.loser.isFbs:
             gamepoints = numBuckets - math.floor(game.loser.rank.ranking / bucketSize)
+        else:
+            gamepoints = 0
             
         return gamepoints
 
@@ -251,10 +286,12 @@ def AddGame(row, fbsTeams, allTeams):
         # Hey, this team showed up in the left column! They're an FBS team.
         if row['Institution ID'] not in fbsTeams:
             fbsTeams[h.id] = h
+            h.isFbs = True
     else:
         h = Team(row['Institution ID'], row['Institution'])
         fbsTeams[h.id] = h
         allTeams[h.id] = h
+        h.isFbs = True
 
     if row['Opponent ID'] in allTeams:
         a = allTeams[row['Opponent ID']]
