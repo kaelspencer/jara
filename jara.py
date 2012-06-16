@@ -12,7 +12,7 @@ class Rank:
     winPercent = 0
     winPercentWeight = 100
     winOver = 0
-    winOverWeight = 1
+    winOverWeight = 150
     strengthOfSchedule = 0
     strengthOfScheduleWeight = 100
     
@@ -22,7 +22,6 @@ class Rank:
         total += self.strengthOfSchedule * self.strengthOfScheduleWeight
         
         return total
-
 #
 # A team object which holds a list of games
 #
@@ -137,13 +136,14 @@ class Ranking:
         self.UpdateRankings()
         
         self.DetermineStrenghOfSchedule()
+        self.NormalizeStrengthOfSchedule()
         self.UpdateRankings()
-        
-        self.OrderByWinOver()
-        self.UpdateRankings()
-        
+
+        print self.GetRankingDisplay(25)
+                
         for a in range(1, 50):
             self.OrderByWinOver()
+            self.NormalizeWinOver()
             self.UpdateRankings()
             
         print self.GetRankingDisplay(25)
@@ -186,11 +186,12 @@ class Ranking:
                 
                 i += 1
                 
-                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + ('%.3f' % (team.rank.TotalPoints(),))
+                output += str(rank).rjust(3) + '  ' + str(team).ljust(20) + ' Total points: ' + ('%.3f' % team.rank.TotalPoints())
                 output += '\t(' + str(team.wincount).rjust(2) + ' - ' + str(team.losscount) + ')'
-                output += '\t Win Over: ' + str(team.rank.winOver).rjust(5) + ' (' + str(team.rank.winOver * team.rank.winOverWeight).rjust(5) + ')'
-                output += '\t Win Per: ' + ('%.3f' % (team.rank.winPercent * team.rank.winPercentWeight,)).rjust(6)
-                output += '\t SoS: ' + ('%.3f' % (team.rank.strengthOfSchedule * team.rank.strengthOfScheduleWeight,)) + ' (' + str(team.oppWinCount) + ' - ' + str(team.oppLossCount) + ')'
+                output += '\t Win Over: ' + ('%.3f' % (team.rank.winOver * team.rank.winOverWeight)).rjust(7)
+                output += '\t Win Per: ' + ('%.3f' % (team.rank.winPercent * team.rank.winPercentWeight)).rjust(6)
+                output += '\t SoS: ' + ('%.3f' % (team.rank.strengthOfSchedule * team.rank.strengthOfScheduleWeight))
+                output += ' (' + str(team.oppWinCount) + ' - ' + str(team.oppLossCount) + ', ' + ('%.3f' % team.rank.strengthOfSchedule) + ')'
                 output += '\n'
         
         return output
@@ -234,10 +235,24 @@ class Ranking:
             
             team.rank.winOver = points
     
-    def DetermineStrenghOfSchedule(self):
-        bucketSize = 5
-        numBuckets = math.ceil(self.totalTeams / bucketSize)
+    def NormalizeWinOver(self):
+        max = 0
+        min = 101
         
+        for id, team in self.teams.iteritems():
+            if team.rank.winOver > max:
+                max = team.rank.winOver
+            
+            if team.rank.winOver != 0 and team.rank.winOver < min:
+                min = team.rank.winOver
+        
+        assert max > 0 and min > 0 and min < 101
+        assert max - min > 0
+
+        for id, team in self.teams.iteritems():
+            team.rank.winOver = (team.rank.winOver - min) / (max - min)
+    
+    def DetermineStrenghOfSchedule(self):        
         for id, team in self.teams.iteritems():
             oppWins = 0
             oppLosses = 0
@@ -261,6 +276,23 @@ class Ranking:
             
             team.oppWinCount = oppWins
             team.oppLossCount = oppLosses
+    
+    def NormalizeStrengthOfSchedule(self):
+        max = 0
+        min = 101
+        
+        for id, team in self.teams.iteritems():
+            if team.rank.strengthOfSchedule > max:
+                max = team.rank.strengthOfSchedule
+            
+            if team.rank.strengthOfSchedule != 0 and team.rank.strengthOfSchedule < min:
+                min = team.rank.strengthOfSchedule
+        
+        assert max > 0 and min > 0 and min < 101
+        assert max - min > 0
+
+        for id, team in self.teams.iteritems():
+            team.rank.strengthOfSchedule = (team.rank.strengthOfSchedule - min) / (max - min)
     
     def DetermineGamePoints(self, game):
         bucketSize = 5
