@@ -127,28 +127,28 @@ class Ranking:
     
     def __init__(self, teams):
         self.teams = teams
-        self.totalTeams = float(len(self.teams))
+        self.total_teams = float(len(self.teams))
         
     def Rank(self):
         # This has the side effect of giving all FBS teams a ranking.
         # After this, FCS schools will still have a ranking of 0.
-        self.order = self.OrderByWinPer()
-        self.UpdateRankings()
+        self.order = self.order_by_win_percent()
+        self.update_rankings()
         
-        self.DetermineStrenghOfSchedule()
-        self.Normalizestrength_of_schedule()
-        self.UpdateRankings()
+        self.determine_strength_of_schedule()
+        self.normalize_strength_of_schedule()
+        self.update_rankings()
 
-        print self.GetRankingDisplay(25)
+        print self.get_ranking_display(25)
                 
         for a in range(1, 50):
-            self.OrderBywin_over()
-            self.Normalizewin_over()
-            self.UpdateRankings()
+            self.order_by_win_over()
+            self.normalize_win_over()
+            self.update_rankings()
             
-        print self.GetRankingDisplay(25)
+        print self.get_ranking_display(25)
     
-    def UpdateRankings(self):
+    def update_rankings(self):
         preorder = dict()
         self.order = dict()
         
@@ -163,19 +163,19 @@ class Ranking:
         revPos = 1
         
         for points in sorted(preorder.keys(), reverse=True):
-            posList = list()
+            pos_list = list()
             
             for team in preorder[points]:
-                posList.append(team)
+                pos_list.append(team)
 
-            self.order[revPos] = posList
+            self.order[revPos] = pos_list
             revPos += len(preorder[points])
         
         for rank, teams in self.order.iteritems():
             for team in teams:
                 team.rank.ranking = rank
     
-    def GetRankingDisplay(self, count = 0):
+    def get_ranking_display(self, count=0):
         output = ''
         i = 0
         
@@ -196,9 +196,9 @@ class Ranking:
         
         return output
     
-    def OrderByWinPer(self):
+    def order_by_win_percent(self):
         ordered = dict()
-        retOrder = dict()
+        return_order = dict()
         
         for id in sorted(self.teams.keys()):
             team = self.teams[id]
@@ -211,31 +211,31 @@ class Ranking:
                 ordered[winPer] = [team]
         
         revPos = 1
-        pos = self.totalTeams
+        pos = self.total_teams
         
         for winPer in sorted(ordered.keys(), reverse=True):
-            posList = list()
+            pos_list = list()
             
             for team in ordered[winPer]:
-                posList.append(team)
+                pos_list.append(team)
 
             pos -= len(ordered[winPer])
-            retOrder[revPos] = posList
+            return_order[revPos] = pos_list
             revPos += len(ordered[winPer])
         
-        return retOrder
+        return return_order
     
-    def OrderBywin_over(self):
+    def order_by_win_over(self):
         for id, team in self.teams.iteritems():
             points = 0
             
             for dt, game in team.games.iteritems():
                 if game.winner == team:
-                    points += self.DetermineGamePoints(game)
+                    points += self.determine_game_points(game)
             
             team.rank.win_over = points
     
-    def Normalizewin_over(self):
+    def normalize_win_over(self):
         max = 0
         min = 101
         
@@ -252,32 +252,32 @@ class Ranking:
         for id, team in self.teams.iteritems():
             team.rank.win_over = (team.rank.win_over - min) / (max - min)
     
-    def DetermineStrenghOfSchedule(self):        
+    def determine_strength_of_schedule(self):        
         for id, team in self.teams.iteritems():
-            oppWins = 0
-            oppLosses = 0
+            opponent_wins = 0
+            opponent_losses = 0
             
             for dt, game in team.games.iteritems():
                 if game.winner == team:
-                    oppTeam = game.loser
+                    opponent = game.loser
                 else:
-                    oppTeam  = game.winner
+                    opponent  = game.winner
                 
                 # Only count FBS opponents.
-                if oppTeam.is_fbs:
-                    oppWins += oppTeam.win_count
-                    oppLosses += oppTeam.loss_count
+                if opponent.is_fbs:
+                    opponent_wins += opponent.win_count
+                    opponent_losses += opponent.loss_count
             
             # Some transitional teams (FCS -> FBS) teams will have 0 FBS opponents. Their SoS will be 0.
-            if oppWins + oppLosses == 0:
+            if opponent_wins + opponent_losses == 0:
                 team.rank.strength_of_schedule = 0
             else:
-                team.rank.strength_of_schedule = float(oppWins) / (oppWins + oppLosses)
+                team.rank.strength_of_schedule = float(opponent_wins) / (opponent_wins + opponent_losses)
             
-            team.opp_win_count = oppWins
-            team.opp_loss_count = oppLosses
+            team.opp_win_count = opponent_wins
+            team.opp_loss_count = opponent_losses
     
-    def Normalizestrength_of_schedule(self):
+    def normalize_strength_of_schedule(self):
         max = 0
         min = 101
         
@@ -294,13 +294,13 @@ class Ranking:
         for id, team in self.teams.iteritems():
             team.rank.strength_of_schedule = (team.rank.strength_of_schedule - min) / (max - min)
     
-    def DetermineGamePoints(self, game):
-        bucketSize = 5
-        numBuckets = math.ceil(self.totalTeams / bucketSize)
+    def determine_game_points(self, game):
+        bucket_size = 5
+        num_buckets = math.ceil(self.total_teams / bucket_size)
         
         # Only count points for wins over an FBS school.
         if game.loser.is_fbs:
-            gamepoints = numBuckets - math.floor(game.loser.rank.ranking / bucketSize)
+            gamepoints = num_buckets - math.floor(game.loser.rank.ranking / bucket_size)
         else:
             gamepoints = 0
             
@@ -309,27 +309,27 @@ class Ranking:
 #
 # Parses a row of the CSV file, creates games and teams as needed
 #
-def add_game(row, fbsTeams, allTeams):
+def add_game(row, fbs_teams, all_teams):
     neutral = False
 
-    if row['Institution ID'] in allTeams:
-        h = allTeams[row['Institution ID']]
+    if row['Institution ID'] in all_teams:
+        h = all_teams[row['Institution ID']]
         
         # Hey, this team showed up in the left column! They're an FBS team.
-        if row['Institution ID'] not in fbsTeams:
-            fbsTeams[h.id] = h
+        if row['Institution ID'] not in fbs_teams:
+            fbs_teams[h.id] = h
             h.is_fbs = True
     else:
         h = Team(row['Institution ID'], row['Institution'])
-        fbsTeams[h.id] = h
-        allTeams[h.id] = h
+        fbs_teams[h.id] = h
+        all_teams[h.id] = h
         h.is_fbs = True
 
-    if row['Opponent ID'] in allTeams:
-        a = allTeams[row['Opponent ID']]
+    if row['Opponent ID'] in all_teams:
+        a = all_teams[row['Opponent ID']]
     else:
         a = Team(row['Opponent ID'], row['Opponent Name'])
-        allTeams[a.id] = a
+        all_teams[a.id] = a
         
     if row['Location'] == 'Neutral Site':
         neutral = True
@@ -344,9 +344,9 @@ def add_game(row, fbsTeams, allTeams):
         home_score = int(row['Score For'])
         away_score = int(row['Score Against'])
     
-    dateSubparts = row['Game Date'].split('/') # Format: MM/DD/YY
+    date_sub_parts = row['Game Date'].split('/') # Format: MM/DD/YY
     # BUG: Reverse Y2K bug? Yes. Fix.
-    d = date(2000 + int(dateSubparts[2]), int(dateSubparts[0]), int(dateSubparts[1]))
+    d = date(2000 + int(date_sub_parts[2]), int(date_sub_parts[0]), int(date_sub_parts[1]))
     
     g = Game(h, a, home_score, away_score, d, neutral)
     h.add_game(g)
@@ -355,9 +355,9 @@ def add_game(row, fbsTeams, allTeams):
 #
 # Prints all teams and their game results
 #
-def PrintAllTeams(fbsTeams):
-    for id in sorted(fbsTeams.keys()):
-        team = fbsTeams[id]
+def print_all_teams(fbs_teams):
+    for id in sorted(fbs_teams.keys()):
+        team = fbs_teams[id]
         print str(team.rank.ranking).rjust(3) + ' ' + str(team) + ' (' + str(team.win_count) + ' - ' + str(team.loss_count) + ') '
         
         for date in sorted(team.games.keys()):
@@ -368,16 +368,16 @@ def PrintAllTeams(fbsTeams):
 #
 # Main
 #
-fbsTeamList = dict()
-allTeamList = dict()
+fbs_team_list = dict()
+all_team_list = dict()
 
 reader = csv.DictReader(open('fbs.2011.final.csv', 'rb'), delimiter=',', quotechar='"')
 
 for row in reader:
-    add_game(row, fbsTeamList, allTeamList)
+    add_game(row, fbs_team_list, all_team_list)
 
-rank = Ranking(fbsTeamList)
+rank = Ranking(fbs_team_list)
 rank.Rank()
-#print rank.GetRankingDisplay(10)
+#print rank.get_ranking_display(10)
 
-#PrintAllTeams(fbsTeamList)
+#print_all_teams(fbs_team_list)
