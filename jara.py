@@ -138,15 +138,11 @@ class Ranking:
         self.determine_strength_of_schedule()
         self.normalize_strength_of_schedule()
         self.update_rankings()
-
-        print self.get_ranking_display(25)
                 
         for a in range(1, 50):
             self.order_by_win_over()
             self.normalize_win_over()
             self.update_rankings()
-            
-        print self.get_ranking_display(25)
     
     def update_rankings(self):
         preorder = dict()
@@ -361,7 +357,7 @@ def print_all_teams(fbs_teams):
         print str(team.rank.ranking).rjust(3) + ' ' + str(team) + ' (' + str(team.win_count) + ' - ' + str(team.loss_count) + ') '
         
         for date in sorted(team.games.keys()):
-            print team.games[date].Pretty(team)
+            print team.games[date].pretty(team)
         
         print
 
@@ -378,6 +374,6 @@ for row in reader:
 
 rank = Ranking(fbs_team_list)
 rank.Rank()
-#print rank.get_ranking_display(10)
+print rank.get_ranking_display(25)
 
 #print_all_teams(fbs_team_list)
